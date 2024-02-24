@@ -1,5 +1,14 @@
 # Jax Learning
 
+- [Jax Learning](#jax-learning)
+  - [Requirements](#requirements)
+  - [Build model](#build-model)
+  - [Summary Model](#summary-model)
+  - [Data pipeline](#data-pipeline)
+  - [Training](#training)
+  - [Save checkpoint and restore](#save-checkpoint-and-restore)
+  - [Evaluation](#evaluation)
+
 ## Requirements
 
 - Jax: `pip install jax jaxlib`
@@ -70,13 +79,15 @@ def get_test_batches(batch_size=32):
 ```python
 class TrainState(train_state.TrainState):
     def train_step(self, state, batch):
-        def loss_fn(params, x, y):
-            return optax.softmax_cross_entropy(
-                state.apply_fn(params, x),
-                jax.nn.one_hot(y, 10),).mean()
+        def loss_fn(params, batch):
+            x, y = batch
+            loss = optax.softmax_cross_entropy(
+                model.apply(params, x),
+                jax.nn.one_hot(y, 10),
+            ).mean()
+            return loss
 
-        grad_fn = jax.value_and_grad(loss_fn)
-        loss, grads = grad_fn(state.params, batch[0], batch[1])
+        loss, grads = jax.value_and_grad(loss_fn)(state.params, batch)
         state = state.apply_gradients(grads=grads)
         return state, loss
 
@@ -84,12 +95,32 @@ class TrainState(train_state.TrainState):
         logits = state.apply_fn(state.params, batch[0])
         accuracy = jnp.mean(jnp.argmax(logits, axis=-1) == batch[1])
         return accuracy
+
+
+# Create train state
+state = TrainState.create(
+    apply_fn=model.apply,
+    params=model.init(key, x),
+    tx=optax.adam(1e-3),
+)
+
+for epoch in range(10):
+    for batch in train_ds:
+        state, loss = state.train_step(state, batch)
+    print(f"epoch: {epoch}, loss: {loss:.4f}")
 ```
 
 ## Save checkpoint and restore
 
 ```python
 from flax.training import checkpoints
+
+# Create train state
+state = TrainState.create(
+    apply_fn=model.apply,
+    params=model.init(key, x),
+    tx=optax.adam(1e-3),
+)
 
 # Save checkpoint
 checkpoints.save_checkpoint(
@@ -101,3 +132,29 @@ checkpoints.save_checkpoint(
 )
 ```
 
+```python
+# restore the model
+state = checkpoints.restore_checkpoint(
+    ckpt_dir="checkpoints",
+    target=state,
+    step=epoch,)
+```
+
+## Evaluation
+
+```python
+@jax.jit
+def eval_model(params, x, y):
+    logits = model.apply(params, x)
+    accuracy = jnp.mean(jnp.argmax(logits, axis=-1) == y)
+    return accuracy
+
+
+accuracy = jnp.array([])
+for batch in test_ds:
+    acc = eval_model(state.params, batch[0], batch[1])
+    accuracy = jnp.append(accuracy, acc)
+
+acc = accuracy.mean()
+print(f"accuracy: {acc:.4f}")
+```
