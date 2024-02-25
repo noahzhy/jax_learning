@@ -6,13 +6,13 @@ import tensorflow_datasets as tfds
 
 
 def get_train_batches(batch_size=32):
-    ds = tfds.load(name='mnist', split='train', as_supervised=True)
+    ds = tfds.load(name='mnist', split='train', as_supervised=True, shuffle_files=True)
     ds = ds.batch(batch_size).prefetch(1)
     return tfds.as_numpy(ds)
 
 
 def get_test_batches(batch_size=32):
-    ds = tfds.load(name='mnist', split='test', as_supervised=True)
+    ds = tfds.load(name='mnist', split='test', as_supervised=True, shuffle_files=False)
     ds = ds.batch(batch_size).prefetch(1)
     return tfds.as_numpy(ds)
 

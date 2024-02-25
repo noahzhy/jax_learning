@@ -11,10 +11,11 @@ from dataloader import get_test_batches
 
 
 @jax.jit
-def eval_model(params, x, y):
+def eval_model(params, batch):
+    x, y = batch
     logits = model.apply(params, x)
-    accuracy = jnp.mean(jnp.argmax(logits, axis=-1) == y)
-    return accuracy
+    acc = jnp.mean(jnp.argmax(logits, axis=-1) == y)
+    return acc
 
 
 if __name__ == "__main__":
@@ -22,11 +23,11 @@ if __name__ == "__main__":
     print(device)
 
     key = jax.random.PRNGKey(0)
-    x = jnp.ones((5, 28, 28, 1))
+    x = jnp.ones((1, 28, 28, 1))
 
     model = Model()
     params = model.init(key, x)
-    optimizer = optax.adam(1e-3)
+    opt = optax.adam(1e-3)
 
     batch_size = 256
     test_ds = get_test_batches(batch_size)
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     state = TrainState.create(
         apply_fn=model.apply,
         params=params,
-        tx=optimizer,)
+        tx=opt,)
 
     # restore the model
     state = checkpoints.restore_checkpoint(
@@ -43,10 +44,25 @@ if __name__ == "__main__":
         step=10,)
 
     accuracy = jnp.array([])
-    pbar = tqdm(test_ds)
-    for batch in pbar:
-        acc = eval_model(state.params, batch[0], batch[1])
+    for batch in tqdm(test_ds):
+        acc = eval_model(state.params, batch)
         accuracy = jnp.append(accuracy, acc)
 
     acc = accuracy.mean()
     print(f"accuracy: {acc:.4f}")
+
+    import glob, random
+    from PIL import Image
+    import matplotlib.pyplot as plt
+
+    img_path = random.choice(glob.glob("data/*.jpg"))
+    print(f"image path: {img_path}")
+    img = Image.open(img_path).convert("L").resize((28, 28))
+    img = jnp.array(img).reshape(1, 28, 28, 1)
+
+    # plt.imshow(img[0, :, :, 0], cmap="gray")
+    # plt.show()
+
+    logits = model.apply(state.params, img)
+    pred = jnp.argmax(logits, axis=-1)
+    print(f"prediction: {pred[0]}")
