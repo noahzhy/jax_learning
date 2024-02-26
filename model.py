@@ -13,15 +13,11 @@ class Model(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        x = self.conv1(x)
-        x = nn.relu(x)
-        x = self.conv2(x)
-        x = nn.relu(x)
-        x = self.conv3(x)
-        x = nn.relu(x)
+        x = nn.relu(self.conv1(x))
+        x = nn.relu(self.conv2(x))
+        x = nn.relu(self.conv3(x))
         x = jnp.mean(x, axis=(1, 2))
-        x = self.dense1(x)
-        x = nn.relu(x)
+        x = nn.relu(self.dense1(x))
         x = self.dense2(x)
         return x
 

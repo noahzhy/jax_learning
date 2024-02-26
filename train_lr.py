@@ -69,15 +69,11 @@ if __name__ == "__main__":
         params=params,
         tx=opt,)
 
-    # tb_writer = tb.SummaryWriter("/Users/haoyu/Documents/Projects/jax_learning/logs")
-
     for epoch in range(1, epochs + 1):
         pbar = tqdm(train_ds)
         for batch in pbar:
             state, loss, lr = state.train_step(state, batch, lr_fn)
             pbar.set_description(f"epoch: {epoch:3d}, lr: {lr:.6f}, loss: {loss:.4f}")
-            # tb_writer.scalar("loss", loss, step=state.step)
-            # tb_writer.scalar("lr", lr, step=state.step)
 
         if epoch % 1 == 0:
             accuracy = jnp.array([])
@@ -87,7 +83,6 @@ if __name__ == "__main__":
 
             acc = accuracy.mean()
             print(f"epoch: {epoch:3d}, accuracy: {acc:.4f}")
-            # tb_writer.scalar("accuracy", acc, step=state.step)
 
             checkpoints.save_checkpoint(
                 ckpt_dir="/Users/haoyu/Documents/Projects/jax_learning/checkpoints",

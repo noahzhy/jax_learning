@@ -50,19 +50,3 @@ if __name__ == "__main__":
 
     acc = accuracy.mean()
     print(f"accuracy: {acc:.4f}")
-
-    import glob, random
-    from PIL import Image
-    import matplotlib.pyplot as plt
-
-    img_path = random.choice(glob.glob("data/*.jpg"))
-    print(f"image path: {img_path}")
-    img = Image.open(img_path).convert("L").resize((28, 28))
-    img = jnp.array(img).reshape(1, 28, 28, 1)
-
-    # plt.imshow(img[0, :, :, 0], cmap="gray")
-    # plt.show()
-
-    logits = model.apply(state.params, img)
-    pred = jnp.argmax(logits, axis=-1)
-    print(f"prediction: {pred[0]}")
