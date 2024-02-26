@@ -29,17 +29,17 @@ def lr_schedule(base_lr, steps_per_epoch, epochs=10, warnup_epochs=2):
 
 class TrainState(train_state.TrainState):
 
-    def train_step(self, state, batch, lr_fn):
+    def train_step(self, state, batch):
         def loss_fn(params, batch):
             x, y = batch
-            logits = state.apply_fn(params, x)
-            loss = -jnp.mean(jax.nn.log_softmax(logits) * jax.nn.one_hot(y, 10))
-            return loss
+            return optax.softmax_cross_entropy(
+                jax.nn.log_softmax(state.apply_fn(params, x)),
+                jax.nn.one_hot(y, 10)
+            ).mean()
 
         loss, grads = jax.value_and_grad(loss_fn)(state.params, batch)
         state = state.apply_gradients(grads=grads)
-        lr = lr_fn(state.step)
-        return state, loss, lr
+        return state, loss
 
     def test_step(self, state, batch):
         x, y = batch
@@ -52,16 +52,15 @@ if __name__ == "__main__":
     device = jax.local_devices()
     print(device)
 
+    key = jax.random.PRNGKey(0)
     epochs = 10
     batch_size = 256
     train_ds, test_ds = get_train_batches(batch_size), get_test_batches(batch_size)
 
-    key = jax.random.PRNGKey(0)
-    x = jnp.ones((1, 28, 28, 1))
+    lr_fn = lr_schedule(2e-3, len(train_ds))
 
     model = Model()
-    params = model.init(key, x)
-    lr_fn = lr_schedule(2e-3, len(train_ds))
+    params = model.init(key, jnp.ones((1, 28, 28, 1)))
     opt = optax.adam(lr_fn)
 
     state = TrainState.create(
@@ -72,8 +71,9 @@ if __name__ == "__main__":
     for epoch in range(1, epochs + 1):
         pbar = tqdm(train_ds)
         for batch in pbar:
-            state, loss, lr = state.train_step(state, batch, lr_fn)
-            pbar.set_description(f"epoch: {epoch:3d}, lr: {lr:.6f}, loss: {loss:.4f}")
+            state, loss = state.train_step(state, batch)
+            lr = lr_fn(state.step)
+            pbar.set_description(f"epoch: {epoch:3d}, loss: {loss:.4f}, lr: {lr:.4f}")
 
         if epoch % 1 == 0:
             accuracy = jnp.array([])
