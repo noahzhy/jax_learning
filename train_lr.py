@@ -49,9 +49,6 @@ class TrainState(train_state.TrainState):
 
 
 if __name__ == "__main__":
-    device = jax.local_devices()
-    print(device)
-
     key = jax.random.PRNGKey(0)
     epochs = 10
     batch_size = 256
