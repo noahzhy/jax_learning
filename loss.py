@@ -4,8 +4,6 @@ from time import perf_counter
 import jax
 import optax
 import jax.numpy as jnp
-from jax.experimental import sparse
-
 
 # ctc loss
 @jax.jit
@@ -23,13 +21,12 @@ def ctc_loss(logits, targets, blank_id=0):
 @jax.jit
 def focal_ctc_loss(logits, targets, blank_id=0, alpha=0.25, gamma=2):
     loss = ctc_loss(logits, targets, blank_id)
-    p = jnp.exp(-loss)
-    fc_loss = alpha * (1 - p) ** gamma * loss
-    return jnp.mean(fc_loss)
+    fc_loss = alpha * (1 - jnp.exp(-loss)) ** gamma * loss
+    return fc_loss.mean()
 
 
 def focal_ctc_loss_test():
-    logits = jnp.ones((4, 16, 12))
+    logits = jnp.ones((4, 16, 127))
     labels = jnp.array([
         [1,2,2,4,5,0,0,0],
         [6,2,1,1,7,7,5,0],
@@ -41,7 +38,7 @@ def focal_ctc_loss_test():
     start_time = time.perf_counter()
     for i in range(1000):
         loss = focal_ctc_loss(logits, labels, blank_id=0)
-    
+
     end_time = time.perf_counter()
     avg_time = (end_time - start_time) / 1000
     return loss, avg_time

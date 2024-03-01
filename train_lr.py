@@ -4,7 +4,7 @@ from tqdm import tqdm
 import jax.numpy as jnp
 from flax.training import train_state
 from flax.training import checkpoints
-import tensorboard as tb
+import tensorboardX as tbx
 
 from model import Model
 from dataloader import *
@@ -28,6 +28,7 @@ def lr_schedule(base_lr, steps_per_epoch, epochs=10, warnup_epochs=2):
 
 
 class TrainState(train_state.TrainState):
+    tbx_writer: tbx.SummaryWriter
 
     def train_step(self, state, batch):
         def loss_fn(params, batch):
@@ -49,6 +50,9 @@ class TrainState(train_state.TrainState):
 
 
 if __name__ == "__main__":
+    # name with mnist
+    tbx_writer = tbx.SummaryWriter("logs/mnist")
+
     key = jax.random.PRNGKey(0)
     epochs = 10
     batch_size = 256
@@ -57,19 +61,19 @@ if __name__ == "__main__":
     lr_fn = lr_schedule(2e-3, len(train_ds))
 
     model = Model()
-    params = model.init(key, jnp.ones((1, 28, 28, 1)))
-    opt = optax.adam(lr_fn)
-
     state = TrainState.create(
         apply_fn=model.apply,
-        params=params,
-        tx=opt,)
+        params=model.init(key, jnp.ones((1, 28, 28, 1))),
+        tx=optax.adam(lr_fn),
+        tbx_writer=tbx_writer,)
 
     for epoch in range(1, epochs + 1):
         pbar = tqdm(train_ds)
         for batch in pbar:
             state, loss = state.train_step(state, batch)
             lr = lr_fn(state.step)
+            # tbx_writer.add_scalar("loss", loss, state.step)
+            # tbx_writer.add_scalar("lr", lr, state.step)
             pbar.set_description(f"epoch: {epoch:3d}, loss: {loss:.4f}, lr: {lr:.4f}")
 
         if epoch % 1 == 0:
@@ -80,6 +84,7 @@ if __name__ == "__main__":
 
             acc = accuracy.mean()
             print(f"epoch: {epoch:3d}, accuracy: {acc:.4f}")
+            # tbx_writer.add_scalar("accuracy", acc, state.step)
 
             checkpoints.save_checkpoint(
                 ckpt_dir="/Users/haoyu/Documents/Projects/jax_learning/checkpoints",
@@ -87,3 +92,5 @@ if __name__ == "__main__":
                 step=epoch,
                 overwrite=True,
                 keep=2,)
+
+    # tbx_writer.close()
