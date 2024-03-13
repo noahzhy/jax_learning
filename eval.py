@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     model = Model()
     params = model.init(key, x)
-    opt = optax.adam(1e-3)
+    opt = optax.chain(optax.clip_by_global_norm(1.0), optax.adam(2e-3))
 
     batch_size = 256
     test_ds = get_test_batches(batch_size)
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     state = checkpoints.restore_checkpoint(
         ckpt_dir="checkpoints",
         target=state,
-        step=10,)
+        step=8,)
 
     accuracy = jnp.array([])
     for batch in tqdm(test_ds):

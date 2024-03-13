@@ -78,7 +78,6 @@ class TrainState(train_state.TrainState):
 
 
 if __name__ == "__main__":
-
     key = jax.random.PRNGKey(0)
     epochs = 10
     batch_size = 256

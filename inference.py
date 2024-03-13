@@ -25,7 +25,7 @@ if __name__ == "__main__":
     state = checkpoints.restore_checkpoint(
         ckpt_dir="checkpoints",
         target=state,
-        step=10,)
+        step=8,)
 
     img_path = random.choice(glob.glob("data/*.jpg"))
     print(f"image path: {img_path}")
